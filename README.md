@@ -1,5 +1,5 @@
 # SignalNoise
-Scripts to calculate Signal/Noise in UCE data
+* **Scripts to calculate Signal/Noise in UCE data
 
 
 These are the skeletal components of the my signal to noise pipeline. The first series of scripts (python) need to take nexus.rates files that TAPIR makes and strip them of information that I need to feed into Mathematica. These text files will then be read by Mathematica and the pertinent bits of information will be stored and used to calculate signal/ noise. The pertinent bits of information are:
