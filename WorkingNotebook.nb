@@ -1,0 +1,140 @@
+(*Step 1: Copy and paste in the site rate vector*) 
+
+ratevector = {0.6951, 0, 0.6951, 1.4425, 0, 0, 1.5222, 0.6951, 4.3295,
+    4.3283};
+
+(*Step 2: Copy and paste in the chronogram lengths (time units) of \
+the four subtending branches and the internode of the four-taxon \
+tree, by replacing T1, T2, T3, T4, and t0 below*) 
+
+internode = {45, 1000};
+
+(*Step 3: Copy and paste in the estimated values of the model \
+parameters*) 
+
+rCT = 2.0246; 
+rAT = 0.156288; 
+rTG = 0.367473; 
+rCA = 0.397989; 
+rCG = 0.40936; 
+rAG = 1;
+
+\[Pi]T = .25; 
+\[Pi]C = .25; 
+\[Pi]A = .25; 
+
+(*Step 4: Calculation begins here; no more manual input is necessary. \
+
+Go to "Evaluation" \[Rule] "Evaluate Notebook" to perform the \
+calculation. 
+Scroll down to the bottom of the file to view results*)
+
+\[Pi]G = 1 - \[Pi]T - \[Pi]C - \[Pi]A;
+a = rCT; b = rAT; c = rTG; d = rCA; e = rCG; f = rAG;
+\[Mu] = 1/
+    2/(a*\[Pi]T*\[Pi]C + b*\[Pi]T*\[Pi]A + c*\[Pi]T*\[Pi]G + 
+     d*\[Pi]C*\[Pi]A + e*\[Pi]C*\[Pi]G + f*\[Pi]A*\[Pi]G); 
+Q = \[Mu]*{
+    {-a*\[Pi]C - b*\[Pi]A - c*\[Pi]G, a*\[Pi]C, b*\[Pi]A, c*\[Pi]G},
+    {a*\[Pi]T, -a*\[Pi]T - d*\[Pi]A - e*\[Pi]G, d*\[Pi]A, e*\[Pi]G},
+    {b*\[Pi]T, d*\[Pi]C, -b*\[Pi]T - d*\[Pi]C - f*\[Pi]G, f*\[Pi]G},
+    {c*\[Pi]T, e*\[Pi]C, f*\[Pi]A, -c*\[Pi]T - e*\[Pi]C - f*\[Pi]A}
+    }; 
+Frequency = {\[Pi]T, \[Pi]C, \[Pi]A, \[Pi]G};
+dev = DiagonalMatrix[Eigenvalues[Q]];
+tev = Transpose[Eigenvectors[Q]];
+itev = Inverse[tev];
+P = Expand[tev.MatrixExp[dev*\[Lambda]*t].itev];
+Po = Expand[tev.MatrixExp[dev*\[Lambda]*tnaught].itev];
+
+Correct = 0;
+Wrong1 = 0;
+(*Wrong2=0;*)
+
+For[OriginalCharacter = 1, OriginalCharacter <= 4, 
+  OriginalCharacter++,
+  
+  For[InternodeCharacter = 1, InternodeCharacter <= 4, 
+    InternodeCharacter++,
+    
+    For[LeafCharacter1 = 1, LeafCharacter1 <= 4, LeafCharacter1++,
+      
+      For[LeafCharacter2 = 1, LeafCharacter2 <= 4, LeafCharacter2++,
+        
+        AddSum = Frequency[[OriginalCharacter]]*
+          		Po[[OriginalCharacter, InternodeCharacter]]*
+          		P[[OriginalCharacter, LeafCharacter1]]^2*
+          		P[[InternodeCharacter, LeafCharacter2]]^2*
+          		If[LeafCharacter1 == LeafCharacter2, 0, 1];			
+        Correct = Correct + AddSum;
+        
+        AddSum2 = Frequency[[OriginalCharacter]]*
+          		Po[[OriginalCharacter, InternodeCharacter]]*
+          		P[[OriginalCharacter, LeafCharacter1]]*
+          P[[OriginalCharacter, LeafCharacter2]]*
+          		P[[InternodeCharacter, LeafCharacter1]]*
+          P[[InternodeCharacter, LeafCharacter2]]*
+          		If[LeafCharacter1 == LeafCharacter2, 0, 1];
+        Wrong1 = Wrong1 + AddSum2;
+        
+        (*
+        AddSum3=Frequency[[OriginalCharacter]]*
+        		Po[[OriginalCharacter,InternodeCharacter]]*
+        		P[[OriginalCharacter,LeafCharacter1]]*P[[OriginalCharacter,
+        LeafCharacter2]]*
+        		P[[InternodeCharacter,LeafCharacter2]]*P[[
+        InternodeCharacter,LeafCharacter1]]*
+        		If[LeafCharacter1==LeafCharacter2,0,1];
+        Wrong2=Wrong2+AddSum3;
+        *)
+        
+        ];(*LeafCharacter2*)
+      
+      ];(*LeafCharacter1*)
+    
+    ];(*For InternodeCharacter*)
+  
+  ];(*For OriginalCharacter*)
+
+
+Y = Expand[
+   Correct /. {t -> internode[[1]], tnaught -> internode[[2]]}];
+X1 = Expand[
+   Wrong1 /. {t -> internode[[1]], tnaught -> internode[[2]]}];
+
+
+n = Length[ratevector];
+
+eYsum = 0;
+eX1sum = 0;
+eY2sum = 0;
+eX12sum = 0;
+eX1Ysum = 0;
+
+For[j = 1, j <= n, j++,
+  eYsum = eYsum + (Y /. \[Lambda] -> ratevector[[j]]);
+  eX1sum = eX1sum + (X1 /. \[Lambda] -> ratevector[[j]]);
+  eY2sum = 
+   eY2sum + (Y /. \[Lambda] -> ratevector[[j]])*(Y /. \[Lambda] -> 
+        ratevector[[j]]);
+  eX12sum = 
+   eX12sum + (X1 /. \[Lambda] -> ratevector[[j]])*(X1 /. \[Lambda] -> 
+        ratevector[[j]]);
+  eX1Ysum = 
+   eX1Ysum + (X1 /. \[Lambda] -> ratevector[[j]])*(Y /. \[Lambda] -> 
+        ratevector[[j]]);
+  ];
+
+expectation = eYsum - (eX1sum + Sqrt[eX1sum/Pi]);
+variance = eYsum - eY2sum + ((Pi - 1)/Pi)*eX1sum - eX12sum + 2*eX1Ysum;
+
+ndist = NormalDistribution[expectation, Sqrt[variance]];
+princtree = N[CDF[ndist, -0.5]];
+prpolytomy = N[CDF[ndist, 0.5]] - N[CDF[ndist, -0.5]];
+prcortree = 1 - N[CDF[ndist, 0.5]];
+
+Print[prcortree];
+Print[princtree];
+Print[prpolytomy];
+(*The probabilities of correct resolution, incorrect resolution, and \
+polytomy, respecitvely, are displayed below.*)
